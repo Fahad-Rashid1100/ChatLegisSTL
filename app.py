@@ -60,41 +60,33 @@ def show_production_chat():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # --- Category Selector and Chat Input (Development Only) ---
+    # --- Placeholder for Category Selector (to be re-added) & Chat Input ---
+
+    # Determine chat input placeholder and key based on environment
     if st.session_state.environment == "Development":
         # Ensure selected_category is initialized
         if "selected_category" not in st.session_state:
-            st.session_state.selected_category = "None" # Default
+            st.session_state.selected_category = "None"
 
-        # Prepare chat input placeholder
+        # --- Selectbox for Category Selection (Development Only) ---
+        st.selectbox(
+            "Select Document Category Focus:", # Clearer label
+            options=DOCUMENT_CATEGORIES,
+            key="selected_category", # This key directly maps to st.session_state.selected_category
+        )
+
         chat_input_placeholder = "Ask ChatLegis about Pakistani Law..."
         if st.session_state.selected_category != "None":
             chat_input_placeholder += f" (Focus: {st.session_state.selected_category})"
-
-        # Use columns for chat input and popover trigger button
-        col1, col2 = st.columns([0.92, 0.08]) # Give more space to chat input
-
-        with col1:
-            prompt = st.chat_input(chat_input_placeholder, key="chat_prompt_input_dev")
-
-        with col2:
-            # Add some vertical space to align button better with chat_input if necessary
-            # This is a bit of a hack, alignment can be tricky.
-            st.markdown("<br>", unsafe_allow_html=True)
-            with st.popover("Focus", use_container_width=True):
-                st.radio(
-                    "Select Document Category:",
-                    options=DOCUMENT_CATEGORIES,
-                    key="selected_category", # Binds to st.session_state.selected_category
-                    label_visibility="collapsed" # Hide "Select Document Category:" label if popover title is enough
-                )
-                # st.write(f"DEBUG In Popover: {st.session_state.selected_category}")
-    else:
-        # --- Handle user input (Production) ---
+        chat_input_key = "chat_prompt_input_dev"
+    else: # Production
         chat_input_placeholder = "Ask ChatLegis about Pakistani Law..."
-        prompt = st.chat_input(chat_input_placeholder, key="chat_prompt_input_prod")
+        chat_input_key = "chat_prompt_input_prod"
 
-    if prompt: # This 'prompt' is now from either dev or prod input
+    # Actual chat input
+    prompt = st.chat_input(chat_input_placeholder, key=chat_input_key)
+
+    if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
