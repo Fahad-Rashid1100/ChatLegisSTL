@@ -5,6 +5,7 @@ import json
 # --- Configuration ---
 PROD_FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us"
 DEV_FASTAPI_BASE_URL = "http://localhost:8000" # Standard local development port
+DOCUMENT_CATEGORIES = ["Defaults", "Suits", "Judgements", "Contracts", "None"] # Added "None" for default/no filter
 
 # The actual FASTAPI_BASE_URL will be set dynamically based on the environment selection later in the script,
 # after st.session_state.environment is confirmed.
@@ -51,13 +52,30 @@ def show_production_chat():
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = None
 
+    if "selected_category" not in st.session_state:
+        st.session_state.selected_category = "None" # Default to "None"
+
     # --- Display existing messages ---
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # --- Category Selector (Development Only) ---
+    if st.session_state.environment == "Development":
+        st.session_state.selected_category = st.selectbox(
+            "Select Document Category:",
+            options=DOCUMENT_CATEGORIES,
+            index=DOCUMENT_CATEGORIES.index(st.session_state.selected_category), # Keep current selection
+            key="doc_category_selector"
+        )
+        # st.write(f"DEBUG: Selected Category: {st.session_state.selected_category}") # For debugging
+
     # --- Handle user input ---
-    if prompt := st.chat_input("Ask ChatLegis about Pakistani Law..."):
+    chat_input_placeholder = "Ask ChatLegis about Pakistani Law..."
+    if st.session_state.environment == "Development" and st.session_state.selected_category != "None":
+        chat_input_placeholder += f" (Focus: {st.session_state.selected_category})"
+
+    if prompt := st.chat_input(chat_input_placeholder):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -68,6 +86,14 @@ def show_production_chat():
             "role": "user", # The Streamlit app is always the user
             "conversation_id": st.session_state.conversation_id
         }
+
+    # Add document category to request if in Development mode
+    if st.session_state.environment == "Development":
+        if st.session_state.selected_category == "None":
+            request_data["document_category"] = None # Send null for "None"
+        else:
+            request_data["document_category"] = st.session_state.selected_category
+    # In Production mode, the document_category key is not added.
 
         with st.chat_message("assistant"):
             with st.spinner("ChatLegis is thinking..."):
@@ -102,6 +128,10 @@ if st.session_state.environment == "Development":
     st.sidebar.markdown("---") # Separator in sidebar
     st.sidebar.header("🚧 Development Features 🚧")
     st.sidebar.info("New features like Multichat will appear here once implemented.")
+    if "selected_category" in st.session_state and st.session_state.selected_category != "None":
+        st.sidebar.write(f"**Active Document Focus:** {st.session_state.selected_category}")
+    else:
+        st.sidebar.write("**Active Document Focus:** General")
 
     # You could also add placeholders in the main app area if needed
     # st.markdown("---")
