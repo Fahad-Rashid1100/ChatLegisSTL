@@ -87,14 +87,17 @@ def show_production_chat():
             "conversation_id": st.session_state.conversation_id
         }
 
-    # Add document category to request if in Development mode
-    if st.session_state.environment == "Development":
-        if st.session_state.selected_category == "None":
-            request_data["document_category"] = None # Send null for "None"
-        else:
-            request_data["document_category"] = st.session_state.selected_category
-    # In Production mode, the document_category key is not added.
+        # Add document category to request_data if in Development mode
+        # This logic MUST be within the `if prompt:` block, after `request_data` is defined.
+        if st.session_state.environment == "Development":
+            if st.session_state.selected_category == "None":
+                request_data["document_category"] = None # Send Python None (JSON null)
+            else:
+                request_data["document_category"] = st.session_state.selected_category
+        # Note: If not in Development mode, 'document_category' is not added,
+        # ensuring production requests remain unchanged.
 
+        # Now, proceed to use request_data to call the backend
         with st.chat_message("assistant"):
             with st.spinner("ChatLegis is thinking..."):
                 try:
