@@ -3,15 +3,14 @@ import requests
 import json
 
 # --- Configuration ---
-# Note: In a real-world scenario with different backend functionalities for dev/prod,
-# you might want to set FASTAPI_BASE_URL based on st.session_state.environment.
-# For example:
-# if st.session_state.get("environment") == "Development":
-#     FASTAPI_BASE_URL = "http://localhost:8001" # Or your dev backend URL
-# else:
-#     FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us" # Production backend
-FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us" # Currently using the same for both
-CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}/api/v1/chatlegis/chat"
+PROD_FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us"
+DEV_FASTAPI_BASE_URL = "http://localhost:8000" # Standard local development port
+
+# The actual FASTAPI_BASE_URL will be set dynamically based on the environment selection later in the script,
+# after st.session_state.environment is confirmed.
+FASTAPI_BASE_URL = "" # Initialize, will be overwritten
+CHAT_ENDPOINT = "" # Initialize, will be overwritten
+
 
 st.set_page_config(page_title="ChatLegis Demo", page_icon="⚖️", layout="wide")
 
@@ -30,9 +29,17 @@ if "environment" not in st.session_state:
 if st.session_state.environment_selection: # Check if the selectbox has a value
     st.session_state.environment = st.session_state.environment_selection
 
+# --- Dynamically set API endpoints based on environment ---
+if st.session_state.environment == "Development":
+    FASTAPI_BASE_URL = DEV_FASTAPI_BASE_URL
+else: # Default to Production
+    FASTAPI_BASE_URL = PROD_FASTAPI_BASE_URL
+
+CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}/api/v1/chatlegis/chat"
+
 
 st.title("⚖️ ChatLegis Demo")
-st.caption(f"AI Assistant for Pakistani Law (Environment: {st.session_state.environment})")
+st.caption(f"AI Assistant for Pakistani Law (Environment: {st.session_state.environment}, API: {FASTAPI_BASE_URL})")
 
 
 # --- Function to display production chat interface ---
