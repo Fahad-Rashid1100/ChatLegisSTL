@@ -72,7 +72,7 @@ def show_production_chat():
             chat_input_placeholder += f" (Focus: {st.session_state.selected_category})"
 
         # Use columns for chat input and popover trigger button
-        col1, col2 = st.columns([0.85, 0.15]) # Adjust ratio as needed
+        col1, col2 = st.columns([0.92, 0.08]) # Give more space to chat input
 
         with col1:
             prompt = st.chat_input(chat_input_placeholder, key="chat_prompt_input_dev")
