@@ -1,11 +1,9 @@
 import streamlit as st
 import requests
 import json
-import io # --- NEW ---: Needed to handle in-memory audio bytes
-from st_audiorec import st_audiorec # --- NEW ---: The audio recorder component
+import io
+from st_audiorec import st_audiorec
 
-# --- Configuration ---
-# Replace this with your actual deployed backend URL
 # --- Configuration ---
 FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us" # Using dev port for testing
 CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}/api/v1/chatlegis/chat"
@@ -22,6 +20,8 @@ if "conversation_id" not in st.session_state:
     st.session_state.conversation_id = None
 if "document_category" not in st.session_state:
     st.session_state.document_category = "General"
+if "audio_data" not in st.session_state:
+    st.session_state.audio_data = None
 
 # --- Central function for backend communication ---
 def send_chat_request(prompt_text, file_data=None, file_name=None):
@@ -36,7 +36,7 @@ def send_chat_request(prompt_text, file_data=None, file_name=None):
                     "document_category": scope_to_send
                 }
                 files = {'file': (file_name, file_data, 'application/octet-stream')} if file_data else None
-                
+
                 response = requests.post(CHAT_ENDPOINT, data=data, files=files, timeout=180)
                 response.raise_for_status()
                 response_data = response.json()
@@ -58,47 +58,65 @@ with st.sidebar:
     st.sidebar.selectbox("Select Document Category:", options=DOCUMENT_CATEGORIES, key="document_category")
     st.markdown("---")
     st.header("Upload a Document")
-    # --- STREAMLIT FIX #1: Use a different key for the uploader ---
     uploaded_file = st.file_uploader(
         "Upload a document to ask questions about it",
         type=['pdf', 'docx', 'png', 'jpg', 'jpeg'],
-        key="file_upload_widget" # Use a distinct key
+        key="file_upload_widget"
     )
-    # --- NEW: Audio Recorder ---
     st.markdown("---")
-    st.header("Record Audio\n\n(HIT THE RESET BUTTON BEFORE SENDING A TEXT IF YOU PREVIOUSLY RECORDED UR AUDIO!)")
-    wav_audio_data = st_audiorec() # Keep this commented out until you install the library
+    st.header("Record Audio")
+    wav_audio_data = st_audiorec()
+
+    # Check for a new, valid audio recording
+    if wav_audio_data is not None and len(wav_audio_data) > 1000:
+        # If there's a new recording, save it to the session state
+        st.session_state.audio_data = wav_audio_data
+        # DO NOT call st.rerun() here, as it will cause a loop.
+        # The script will continue and render the buttons below naturally.
 
 # --- Main Chat Interface ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- NEW: Handle Audio Input ---
-if wav_audio_data is not None:
-    # This block executes when a recording is finished.
-    st.session_state.messages.append({"role": "user", "content": "[Processing recorded audio...]"})
-    with st.chat_message("user"):
-        st.audio(wav_audio_data, format='audio/wav')
-    
-    # Send the audio data to the backend with a specific instruction
-    send_chat_request(
-        prompt_text="Please transcribe the following audio and provide a detailed answer to the user's question.",
-        file_data=wav_audio_data,
-        file_name="user_audio.wav"
-    )
+# --- Audio Handling Logic ---
+if st.session_state.audio_data is not None:
+    st.info("You have a recorded audio clip. You can send it or clear it.")
+    st.audio(st.session_state.audio_data, format='audio/wav')
+
+    col1, col2, _ = st.columns([1, 1, 2])
+
+    with col1:
+        if st.button("▶️ Send Audio"):
+            st.session_state.messages.append({"role": "user", "content": "[User sent an audio recording]"})
+            with st.chat_message("user"):
+                st.audio(st.session_state.audio_data, format='audio/wav')
+
+            with st.spinner("Transcribing and sending audio... Please wait."):
+                send_chat_request(
+                    prompt_text="Please transcribe the following audio and provide a detailed answer to the user's question.",
+                    file_data=st.session_state.audio_data,
+                    file_name="user_audio.wav"
+                )
+
+            st.session_state.audio_data = None
+            st.rerun()
+
+    with col2:
+        if st.button("🗑️ Clear Recording"):
+            st.session_state.audio_data = None
+            st.rerun()
 
 # --- Chat Input for Text ---
 chat_input_placeholder = "Ask about Pakistani Law..."
 if st.session_state.document_category != "General":
     chat_input_placeholder += f" (Focus: {st.session_state.document_category})"
 
-if prompt := st.chat_input(chat_input_placeholder):
+if prompt := st.chat_input(chat_input_placeholder, disabled=(st.session_state.audio_data is not None)):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Check if the file uploader widget has a file in it
     file_to_send = None
     file_name_to_send = None
     if uploaded_file is not None:
