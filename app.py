@@ -7,7 +7,7 @@ from st_audiorec import st_audiorec # --- NEW ---: The audio recorder component
 # --- Configuration ---
 # Replace this with your actual deployed backend URL
 # --- Configuration ---
-FASTAPI_BASE_URL = "http://127.0.0.1:5000" # Using dev port for testing
+FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us" # Using dev port for testing
 CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}/api/v1/chatlegis/chat"
 DOCUMENT_CATEGORIES = ["General", "Statutes", "Judgements", "Contracts", "Suits"]
 
