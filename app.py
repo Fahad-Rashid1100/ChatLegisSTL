@@ -60,7 +60,7 @@ with st.sidebar:
     st.header("Upload a Document")
     uploaded_file = st.file_uploader(
         "Upload a document to ask questions about it",
-        type=['pdf', 'docx', 'png', 'jpg', 'jpeg'],
+        type=['pdf', 'png', 'jpg', 'jpeg', 'wav'],
         key="file_upload_widget"
     )
     st.markdown("---")
