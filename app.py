@@ -87,7 +87,7 @@ with st.sidebar:
     st.selectbox("Select Document Category:", options=DOCUMENT_CATEGORIES, key="document_category")
     st.markdown("---")
     st.header("Upload a Document")
-    uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'png', 'jpg', 'jpeg'])
+    uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'png', 'jpg', 'jpeg', 'wav'])
 
 # --- Main Chat Interface ---
 for message in st.session_state.messages:
