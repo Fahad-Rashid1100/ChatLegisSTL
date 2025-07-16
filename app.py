@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 
-# --- Configuration ---
-FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us"
+# --- Configuration (No Changes) ---
+FASTAPI_BASE_URL = "http://127.0.0.1:8000"
 API_V1_STR = "/api/v1"
 CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}{API_V1_STR}/chatlegis/chat"
 CONVERSATIONS_ENDPOINT = f"{FASTAPI_BASE_URL}{API_V1_STR}/chatlegis/conversations"
@@ -13,7 +13,7 @@ st.set_page_config(page_title="ChatLegis", page_icon="⚖️", layout="centered"
 st.title("⚖️ ChatLegis")
 st.caption("Your AI Assistant for Pakistani Law")
 
-# --- Initialize Session State ---
+# --- Initialize Session State (No Changes) ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "conversation_id" not in st.session_state:
@@ -36,24 +36,45 @@ def clear_chat():
     st.session_state.messages = []
     st.session_state.conversation_id = None
 
+# --- UPDATED FUNCTION ---
 def load_conversation(convo_id):
+    """
+    Loads a conversation from the backend and correctly formats messages
+    for display in the Streamlit UI, including file attachments.
+    """
     headers = get_auth_header()
     if not headers: return
     try:
         response = requests.get(f"{HISTORY_ENDPOINT}/{convo_id}", headers=headers)
         response.raise_for_status()
-        # The history from backend doesn't have the streamlit 'content' key
-        # We need to remap 'parts' to 'content' for display
-        messages = []
-        for msg in response.json():
-            content = msg.get("parts", [{}])[0].get("text", "[message not found]")
-            messages.append({"role": msg["role"], "content": content})
-        st.session_state.messages = messages
+        
+        history_data = response.json()
+        messages_for_ui = []
+        
+        # Loop through the new, simplified history structure
+        for msg in history_data:
+            role = msg["role"]
+            # Start with the main text prompt
+            display_content = msg.get("prompt", "[Message content not found]")
+            
+            # If there are files, append their info to the display content
+            if "files" in msg and msg["files"]:
+                for file_info in msg["files"]:
+                    # We can use the original file name in the future if we add it.
+                    # For now, the unique name is fine for testing.
+                    file_name = file_info.get("name")
+                    display_content += f"\n\n*Attached file: `{file_name}`*"
+
+            messages_for_ui.append({"role": role, "content": display_content})
+            
+        st.session_state.messages = messages_for_ui
         st.session_state.conversation_id = convo_id
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to load conversation: {e}")
+    except Exception as e:
+        st.error(f"An error occurred while parsing the conversation: {e}")
 
-# --- Sidebar UI ---
+# --- Sidebar UI (No Changes) ---
 with st.sidebar:
     st.title("User Settings")
     
@@ -71,6 +92,7 @@ with st.sidebar:
             st.rerun()
 
         try:
+            # This part still works as the /conversations endpoint was not changed
             conv_response = requests.get(CONVERSATIONS_ENDPOINT, headers=get_auth_header())
             if conv_response.status_code == 200:
                 st.session_state.conversation_list = conv_response.json()
@@ -87,13 +109,16 @@ with st.sidebar:
     st.selectbox("Select Document Category:", options=DOCUMENT_CATEGORIES, key="document_category")
     st.markdown("---")
     st.header("Upload a Document")
-    uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'png', 'jpg', 'jpeg', 'wav'])
+    uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'png', 'jpg', 'jpeg', 'wav', 'mp3'])
 
-# --- Main Chat Interface ---
+# --- Main Chat Interface (No Changes) ---
+# This loop simply displays whatever is in st.session_state.messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# --- Chat Request Function (No Changes) ---
+# This function sends data in the format the /chat endpoint expects, which we did not change.
 def send_chat_request(prompt_text, file_data=None, file_name=None):
     headers = get_auth_header()
     if not headers: return
@@ -106,6 +131,7 @@ def send_chat_request(prompt_text, file_data=None, file_name=None):
                 "conversation_id": st.session_state.conversation_id,
                 "document_category": scope_to_send
             }
+            # Note: We keep sending octet-stream and let our robust backend handle it
             files = {'file': (file_name, file_data, 'application/octet-stream')} if file_data else None
 
             try:
@@ -128,24 +154,31 @@ def send_chat_request(prompt_text, file_data=None, file_name=None):
         st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
 
 
-# --- Chat Input ---
+# --- Chat Input (UPDATED LOGIC) ---
 if prompt := st.chat_input("Ask about Pakistani Law..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
+    
+    # First, determine the full content of the user's message for display
+    user_display_content = prompt
     file_to_send, file_name_to_send = (None, None)
+
     if uploaded_file is not None:
         file_to_send = uploaded_file.getvalue()
         file_name_to_send = uploaded_file.name
-        st.info(f"Attaching file: `{file_name_to_send}`")
+        # Append file info to the display message for a consistent UI
+        user_display_content += f"\n\n*Attaching file: `{file_name_to_send}`*"
 
+    # Display the user's message in the chat
+    st.session_state.messages.append({"role": "user", "content": user_display_content})
+    with st.chat_message("user"):
+        st.markdown(user_display_content)
+
+    # Now, send the request to the backend
     send_chat_request(
-        prompt_text=prompt,
+        prompt_text=prompt,  # Send only the raw text prompt to the backend
         file_data=file_to_send,
         file_name=file_name_to_send
     )
-    # Clear the uploader after sending
-    # This is a bit of a hack for Streamlit's file uploader state
+    
+    # We can use st.rerun() to help manage the state of the file uploader
     if uploaded_file:
         st.rerun()
