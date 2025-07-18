@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # --- Configuration (No Changes) ---
-FASTAPI_BASE_URL = "http://127.0.0.1:8000"
+FASTAPI_BASE_URL = "https://xv2cgtswgvavjpk5majlqxur5m.srv.us"
 API_V1_STR = "/api/v1"
 CHAT_ENDPOINT = f"{FASTAPI_BASE_URL}{API_V1_STR}/chatlegis/chat"
 CONVERSATIONS_ENDPOINT = f"{FASTAPI_BASE_URL}{API_V1_STR}/chatlegis/conversations"
